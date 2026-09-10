@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tv>
+  <channel id="channel.one"><display-name>Channel One</display-name></channel>
+  <channel id="news.24"><display-name>News 24</display-name></channel>
+  <channel id="cinema.hd"><display-name>Cinema</display-name></channel>
+  <channel id="music.live"><display-name>Music Live</display-name></channel>
+  <channel id="kids.world"><display-name>Kids World</display-name></channel>
+
+  <!-- DEMO ONLY. Replace these entries with your XMLTV feed. -->
+  <programme start="20260910200000 +0200" stop="20260910220000 +0200" channel="channel.one">
+    <title>Prime Evening</title><desc>Live evening programming and highlights.</desc>
+  </programme>
+  <programme start="20260910220000 +0200" stop="20260910230000 +0200" channel="channel.one">
+    <title>Night Report</title><desc>News, analysis and the stories of the day.</desc>
+  </programme>
+  <programme start="20260910200000 +0200" stop="20260910213000 +0200" channel="news.24">
+    <title>Newsroom Live</title><desc>Continuous live news coverage.</desc>
+  </programme>
+  <programme start="20260910213000 +0200" stop="20260910223000 +0200" channel="news.24">
+    <title>World Tonight</title><desc>International news and analysis.</desc>
+  </programme>
+  <programme start="20260910200000 +0200" stop="20260910221500 +0200" channel="cinema.hd">
+    <title>Featured Movie</title><desc>Tonight's featured cinematic presentation.</desc>
+  </programme>
+  <programme start="20260910200000 +0200" stop="20260910230000 +0200" channel="music.live">
+    <title>Live Sessions</title><desc>Continuous music performances and curated tracks.</desc>
+  </programme>
+  <programme start="20260910200000 +0200" stop="20260910220000 +0200" channel="kids.world">
+    <title>Family Time</title><desc>Family-friendly entertainment.</desc>
+  </programme>
+</tv>

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="sq">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#050608" />
+  <title>FX+ | Live Television</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <video id="video" class="video-layer" playsinline autoplay></video>
+    <div class="video-shade"></div>
+
+    <div id="bootState" class="boot-state">
+      <div class="brand-orb">FX<span>+</span></div>
+      <div class="boot-title">FX+</div>
+      <div class="boot-sub">Television. Instantly.</div>
+    </div>
+
+    <header id="topHUD" class="top-hud hud-hidden">
+      <div class="brand-lockup">
+        <div class="brand-orb small">FX<span>+</span></div>
+        <div><strong>FX+</strong><span>LIVE TELEVISION</span></div>
+      </div>
+      <div class="clock-wrap"><span id="clock">--:--</span><small id="dateText">--</small></div>
+    </header>
+
+    <section id="miniInfo" class="mini-info hidden" aria-live="polite">
+      <div class="mini-number" id="miniNumber">01</div>
+      <div class="mini-main">
+        <div class="mini-heading"><span id="miniName">Channel</span><span class="live-dot">LIVE</span></div>
+        <div class="mini-program" id="miniProgram">Program unavailable</div>
+        <div class="progress-track"><div id="miniProgress" class="progress-fill"></div></div>
+        <div class="mini-times"><span id="miniStart">--:--</span><span id="miniEnd">--:--</span></div>
+      </div>
+    </section>
+
+    <section id="channelPanel" class="channel-panel hidden" aria-label="Channel browser">
+      <div class="panel-glass">
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">LIVE TELEVISION</div>
+            <h1>All Channels</h1>
+          </div>
+          <div class="head-help"><span class="key">↑↓</span> Navigate <span class="key">OK</span> Watch <span class="key">Back</span> Close</div>
+        </div>
+        <div class="browser-layout">
+          <div id="channelList" class="channel-list" tabindex="0"></div>
+          <aside id="programPanel" class="program-panel">
+            <div class="program-logo" id="programLogo">TV</div>
+            <div class="program-channel" id="programChannel">Channel</div>
+            <h2 id="programTitle">Program information</h2>
+            <div class="program-time" id="programTime">--:-- — --:--</div>
+            <div class="progress-track large"><div id="programProgress" class="progress-fill"></div></div>
+            <p id="programDesc">EPG information will appear here when an XMLTV file is configured.</p>
+            <div class="next-label">UP NEXT</div>
+            <div id="nextProgram" class="next-program">No upcoming programme data</div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <div id="numericEntry" class="numeric-entry hidden">1</div>
+    <div id="toast" class="toast hidden">Message</div>
+    <div id="streamError" class="stream-error hidden">
+      <div class="error-icon">!</div>
+      <strong id="errorTitle">Stream unavailable</strong>
+      <span id="errorText">Check the channel stream URL</span>
+    </div>
+  </div>
+
+  <script src="channels.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
