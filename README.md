@@ -1,20 +1,20 @@
-# FX+ TV App v1.2
+# FX+ TV App v1.4
 
 TV-first IPTV frontend connected to Supabase.
 
-## v1.2
-- Search channels in the overlay
-- Fullscreen button
-- Wide/Fit picture mode
-- Initial channel autoplay fallback (muted until first interaction when browser policy requires it)
-- Automatic channel failover: if a stream is missing, fails fatally, or does not load within 9 seconds, FX+ automatically tries the next active channel
-- Failover never loops forever: if all active streams fail, FX+ shows an error
+## v1.4 compatibility update
+- More robust startup for Fire TV / Silk and Android TV browsers.
+- Native HLS is preferred when the browser supports it; HLS.js is the fallback.
+- HLS.js is pinned and has a second CDN fallback.
+- The boot logo can no longer remain on screen forever: network/media startup has timeouts and visible fallback states.
+- Supabase channel loading has an 8-second timeout.
+- Stream failover moves to the next channel after a failed/blocked stream.
+- Removed newer optional-chaining/nullish syntax from the main app script for better older-browser compatibility.
+
+## Controls
+- Outside channel panel: Up/Right = next channel, Down/Left = previous channel, OK/Enter = open channels.
+- Inside channel panel: arrows navigate, OK/Enter selects, Back/Escape closes.
+- Search, Wide/Fit, Fullscreen and 5-second auto-close are retained.
 
 ## Data
-Channels are loaded from the Supabase `channels` table. Stream URLs are not hardcoded in the UI.
-
-
-## v1.3
-- Channel overlay closes automatically after 5 seconds without interaction.
-- Mouse, touch, remote/keyboard movement, search, wheel and list scrolling reset the 5-second timer.
-- Added an explicit Close (x) button; closing the overlay does not restart the current channel.
+Channels are read from the Supabase `channels` table. Only active channels are shown.

@@ -32,7 +32,7 @@
   let streamAttemptToken = 0;
   let failoverTimer = null;
 
-  const safeText = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+  const safeText = value => String(value == null ? "" : value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
 
   function formatClock(d) {
     return new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
@@ -66,8 +66,8 @@
         const item = {
           start: parseXmlTvDate(node.getAttribute("start")),
           stop: parseXmlTvDate(node.getAttribute("stop")),
-          title: node.querySelector("title")?.textContent?.trim() || "Live programme",
-          desc: node.querySelector("desc")?.textContent?.trim() || ""
+          title: ((node.querySelector("title") && node.querySelector("title").textContent) ? node.querySelector("title").textContent.trim() : "Live programme"),
+          desc: ((node.querySelector("desc") && node.querySelector("desc").textContent) ? node.querySelector("desc").textContent.trim() : "")
         };
         if (!epg.has(channel)) epg.set(channel, []);
         epg.get(channel).push(item);
@@ -94,7 +94,7 @@
   }
 
   function progressOf(programme) {
-    if (!programme?.start || !programme?.stop) return 0;
+    if (!programme || !programme.start || !programme.stop) return 0;
     const total = programme.stop - programme.start;
     if (total <= 0) return 0;
     return Math.max(0, Math.min(100, ((Date.now() - programme.start) / total) * 100));
@@ -107,7 +107,7 @@
 
   function filteredChannels() {
     const q = searchQuery.trim().toLowerCase();
-    return channels.map((c, i) => ({ c, i })).filter(({ c }) => !q || c.name.toLowerCase().includes(q) || String(c.number ?? "").includes(q));
+    return channels.map((c, i) => ({ c, i })).filter(({ c }) => !q || c.name.toLowerCase().includes(q) || String(c.number == null ? "" : c.number).includes(q));
   }
 
   function renderChannelList() {
@@ -122,9 +122,9 @@
       const active = i === browseIndex;
       const playing = i === currentIndex;
       return `<button class="channel-row ${active ? "focused" : ""} ${playing ? "playing" : ""}" data-index="${i}">
-        <span class="row-number">${String(c.number ?? i + 1).padStart(2,"0")}</span>
+        <span class="row-number">${String(c.number == null ? i + 1 : c.number).padStart(2,"0")}</span>
         <span class="row-logo">${channelLogoMarkup(c)}</span>
-        <span class="row-copy"><strong>${safeText(c.name)}</strong><small>${safeText(current?.title || "Live television")}</small></span>
+        <span class="row-copy"><strong>${safeText(c.name)}</strong><small>${safeText((current && current.title) || "Live television")}</small></span>
         <span class="row-state">${playing ? "NOW" : ""}</span>
       </button>`;
     }).join("");
@@ -138,7 +138,7 @@
   function updateBrowseFocus() {
     channelList.querySelectorAll(".channel-row").forEach(row => row.classList.toggle("focused", Number(row.dataset.index) === browseIndex));
     const focused = channelList.querySelector(`.channel-row[data-index="${browseIndex}"]`);
-    focused?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (focused && focused.scrollIntoView) focused.scrollIntoView({ block: "nearest", behavior: "smooth" });
     renderProgramPanel(channels[browseIndex]);
   }
 
@@ -148,19 +148,19 @@
     const logo = document.getElementById("programLogo");
     logo.innerHTML = channel.logo ? `<img src="${safeText(channel.logo)}" alt=""/>` : safeText(channel.shortName || channel.name.slice(0,3));
     document.getElementById("programChannel").textContent = channel.name;
-    document.getElementById("programTitle").textContent = current?.title || "Live television";
+    document.getElementById("programTitle").textContent = (current && current.title) || "Live television";
     document.getElementById("programTime").textContent = current ? `${formatClock(current.start)} — ${formatClock(current.stop)}` : "Programme data unavailable";
     document.getElementById("programProgress").style.width = `${progressOf(current)}%`;
-    document.getElementById("programDesc").textContent = current?.desc || "Add an XMLTV source in channels.js to display the current programme and description.";
+    document.getElementById("programDesc").textContent = (current && current.desc) || "Add an XMLTV source in channels.js to display the current programme and description.";
     document.getElementById("nextProgram").textContent = next ? `${formatClock(next.start)}  ${next.title}` : "No upcoming programme data";
   }
 
   function showMiniInfo(channel = channels[currentIndex]) {
     if (!channel) return;
     const { current } = epgFor(channel);
-    document.getElementById("miniNumber").textContent = String(channel.number ?? currentIndex + 1).padStart(2,"0");
+    document.getElementById("miniNumber").textContent = String(channel.number == null ? currentIndex + 1 : channel.number).padStart(2,"0");
     document.getElementById("miniName").textContent = channel.name;
-    document.getElementById("miniProgram").textContent = current?.title || "Live television";
+    document.getElementById("miniProgram").textContent = (current && current.title) || "Live television";
     document.getElementById("miniStart").textContent = current ? formatClock(current.start) : "LIVE";
     document.getElementById("miniEnd").textContent = current ? formatClock(current.stop) : "";
     document.getElementById("miniProgress").style.width = `${progressOf(current)}%`;
@@ -259,33 +259,42 @@
     }
 
     // If a server never returns a manifest/error, do not leave the TV frozen.
-    failoverTimer = setTimeout(() => failover("Stream timeout"), 9000);
+    failoverTimer = setTimeout(() => failover("Stream timeout"), 8000);
 
-    if (window.Hls && Hls.isSupported()) {
-      hls = new Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 30, maxBufferLength: 20 });
+    // Prefer the browser's native HLS implementation when it exists. This is
+    // especially useful on TV browsers and avoids unnecessary MediaSource work.
+    var nativeHls = false;
+    try { nativeHls = !!video.canPlayType("application/vnd.apple.mpegurl"); } catch (_) {}
+
+    if (nativeHls) {
+      video.src = channel.stream;
+      var nativeReady = function () {
+        if (attemptToken !== streamAttemptToken) return;
+        clearTimeout(failoverTimer);
+        bootState.classList.add("hidden");
+        smartPlay(isInitial);
+      };
+      video.addEventListener("loadedmetadata", nativeReady, { once: true });
+      video.addEventListener("canplay", nativeReady, { once: true });
+      video.addEventListener("error", function () { failover("Native HLS error"); }, { once: true });
+      video.load();
+    } else if (window.Hls && Hls.isSupported()) {
+      hls = new Hls({ enableWorker: true, lowLatencyMode: false, backBufferLength: 20, maxBufferLength: 15 });
       hls.loadSource(channel.stream);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      hls.on(Hls.Events.MANIFEST_PARSED, function () {
         if (attemptToken !== streamAttemptToken) return;
         clearTimeout(failoverTimer);
         bootState.classList.add("hidden");
         smartPlay(isInitial);
       });
-      hls.on(Hls.Events.ERROR, (_, data) => {
+      hls.on(Hls.Events.ERROR, function (_, data) {
         if (attemptToken !== streamAttemptToken || !data.fatal) return;
         failover(data.details || "HLS error");
       });
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = channel.stream;
-      video.addEventListener("loadedmetadata", () => {
-        if (attemptToken !== streamAttemptToken) return;
-        clearTimeout(failoverTimer);
-        bootState.classList.add("hidden");
-        smartPlay(isInitial);
-      }, { once: true });
-      video.addEventListener("error", () => failover("Native HLS error"), { once: true });
     } else {
       clearTimeout(failoverTimer);
+      bootState.classList.add("hidden");
       showError(channel, "This browser does not support HLS playback.");
     }
 
@@ -358,7 +367,7 @@
       const target = Number(numericBuffer);
       numericBuffer = "";
       numericEntry.classList.add("hidden");
-      const index = channels.findIndex((c, i) => Number(c.number ?? i + 1) === target);
+      const index = channels.findIndex((c, i) => Number(c.number == null ? i + 1 : c.number) === target);
       if (index >= 0) playIndex(index, true);
       else toast(`Channel ${target} not found`);
     }, 900);
@@ -444,7 +453,7 @@
     }
 
     const endpoint = `${baseUrl}/rest/v1/channels?select=id,number,name,logo,stream_url,epg_id,sort_order&active=eq.true&order=sort_order.asc,number.asc`;
-    const response = await fetch(endpoint, {
+    const fetchRequest = fetch(endpoint, {
       cache: "no-store",
       headers: {
         apikey: key,
@@ -452,6 +461,10 @@
         Accept: "application/json"
       }
     });
+    const timeoutRequest = new Promise(function (_, reject) {
+      setTimeout(function () { reject(new Error("Supabase request timed out")); }, 8000);
+    });
+    const response = await Promise.race([fetchRequest, timeoutRequest]);
 
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
@@ -461,7 +474,7 @@
     const rows = await response.json();
     channels = (Array.isArray(rows) ? rows : []).map((row, index) => ({
       id: row.id,
-      number: Number(row.number ?? index + 1),
+      number: Number(row.number == null ? index + 1 : row.number),
       name: row.name || `Channel ${index + 1}`,
       shortName: String(row.name || "TV").replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() || "TV",
       logo: row.logo || "",
@@ -490,6 +503,16 @@
       showError(null, "Could not load channels from Supabase. Check the connection and RLS policy.");
     }
   }
+
+  // Never leave the app stuck forever on the FX+ boot logo. If a TV browser
+  // blocks a network/script/media operation, reveal a useful state instead.
+  setTimeout(function () {
+    if (!bootState.classList.contains("hidden")) {
+      bootState.classList.add("hidden");
+      if (!channels.length) showError(null, "FX+ could not finish loading. Check the internet connection and reload the page.");
+      else if (video.paused) soundUnlock.classList.remove("hidden");
+    }
+  }, 10000);
 
   startApp();
 })();
