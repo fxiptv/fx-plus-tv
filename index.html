@@ -45,7 +45,14 @@
             <div class="eyebrow">LIVE TELEVISION</div>
             <h1>All Channels</h1>
           </div>
-          <div class="head-help"><span class="key">↑↓</span> Navigate <span class="key">OK</span> Watch <span class="key">Back</span> Close</div>
+          <div class="panel-tools">
+            <label class="search-wrap" aria-label="Search channels">
+              <span class="search-icon">⌕</span>
+              <input id="channelSearch" type="search" inputmode="search" autocomplete="off" placeholder="Search channels" />
+            </label>
+            <button id="wideBtn" class="tool-btn" type="button" title="Toggle wide picture">Wide</button>
+            <button id="fullscreenBtn" class="tool-btn icon-tool" type="button" title="Fullscreen">⛶</button>
+          </div>
         </div>
         <div class="browser-layout">
           <div id="channelList" class="channel-list" tabindex="0"></div>
@@ -64,6 +71,7 @@
     </section>
 
     <div id="numericEntry" class="numeric-entry hidden">1</div>
+    <button id="soundUnlock" class="sound-unlock hidden" type="button">Tap / OK for sound</button>
     <div id="toast" class="toast hidden">Message</div>
     <div id="streamError" class="stream-error hidden">
       <div class="error-icon">!</div>

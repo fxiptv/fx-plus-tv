@@ -52,3 +52,23 @@ button{color:inherit}
 @media(max-width:560px){
   .panel-glass{height:88vh}.browser-layout{height:calc(100% - 76px)}.mini-info{gap:12px;padding:16px}.mini-number{font-size:30px;min-width:44px}.mini-heading #miniName{font-size:17px}.row-copy small{font-size:10px}
 }
+
+
+/* FX+ v1.1 controls */
+.panel-head{gap:22px}
+.panel-tools{display:flex;align-items:center;gap:10px;margin-left:auto}
+.search-wrap{width:min(330px,32vw);height:44px;display:flex;align-items:center;gap:9px;padding:0 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.055);transition:border-color .16s ease,background .16s ease,box-shadow .16s ease}
+.search-wrap:focus-within{border-color:rgba(255,255,255,.38);background:rgba(255,255,255,.09);box-shadow:0 0 0 3px rgba(255,255,255,.045)}
+.search-icon{font-size:19px;color:var(--muted);line-height:1}
+.search-wrap input{width:100%;border:0;outline:0;background:transparent;color:#fff;font-size:13px;min-width:0}
+.search-wrap input::placeholder{color:rgba(255,255,255,.38)}
+.search-wrap input::-webkit-search-cancel-button{filter:invert(1);opacity:.6}
+.tool-btn{height:44px;min-width:64px;padding:0 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.065);color:rgba(255,255,255,.82);font-size:11px;font-weight:720;letter-spacing:.02em;cursor:pointer;transition:.16s ease}
+.tool-btn:hover,.tool-btn:focus-visible,.tool-btn.active{background:#fff;color:#08090c;outline:none;transform:translateY(-1px)}
+.icon-tool{min-width:46px;padding:0;font-size:18px}
+.video-layer.video-wide{object-fit:cover}
+.sound-unlock{position:absolute;left:50%;bottom:4.2vh;transform:translateX(-50%);z-index:7;padding:10px 16px;border:1px solid rgba(255,255,255,.15);border-radius:999px;background:rgba(12,13,16,.68);backdrop-filter:blur(20px);color:rgba(255,255,255,.84);font-size:11px;font-weight:650;cursor:pointer;box-shadow:0 14px 40px rgba(0,0,0,.28)}
+.sound-unlock:hover{background:rgba(255,255,255,.94);color:#08090c}
+.channel-list .search-empty{padding:34px 20px;color:var(--muted);font-size:13px;text-align:center}
+@media(max-width:900px){.panel-head{align-items:flex-start;flex-direction:column}.panel-tools{width:100%;margin-left:0}.search-wrap{width:100%;flex:1}.tool-btn{flex:0 0 auto}.browser-layout{height:calc(100% - 132px)}}
+@media(max-width:560px){.panel-tools{gap:7px}.search-wrap{height:42px}.tool-btn{height:42px;min-width:56px;padding:0 10px}.icon-tool{min-width:42px}.browser-layout{height:calc(100% - 128px)}}

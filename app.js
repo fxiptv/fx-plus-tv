@@ -12,6 +12,10 @@
   const numericEntry = document.getElementById("numericEntry");
   const toastEl = document.getElementById("toast");
   const errorEl = document.getElementById("streamError");
+  const channelSearch = document.getElementById("channelSearch");
+  const fullscreenBtn = document.getElementById("fullscreenBtn");
+  const wideBtn = document.getElementById("wideBtn");
+  const soundUnlock = document.getElementById("soundUnlock");
 
   let currentIndex = Math.min(Math.max(Number(cfg.startChannel) || 0, 0), Math.max(channels.length - 1, 0));
   let browseIndex = currentIndex;
@@ -21,6 +25,9 @@
   let panelTimer = null;
   let numericTimer = null;
   let numericBuffer = "";
+  let searchQuery = "";
+  let hasUserInteraction = false;
+  let wideMode = false;
 
   const safeText = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
 
@@ -95,10 +102,15 @@
     return `<span class="logo-fallback">${safeText(channel.shortName || channel.name.slice(0,3))}</span>`;
   }
 
+  function filteredChannels() {
+    const q = searchQuery.trim().toLowerCase();
+    return channels.map((c, i) => ({ c, i })).filter(({ c }) => !q || c.name.toLowerCase().includes(q) || String(c.number ?? "").includes(q));
+  }
+
   function renderChannelList() {
-    const list = channels.map((c, i) => ({ c, i }));
+    const list = filteredChannels();
     if (!list.length) {
-      channelList.innerHTML = `<div class="empty-state">No channels available.</div>`;
+      channelList.innerHTML = `<div class="search-empty">${searchQuery ? "No channels match your search." : "No channels available."}</div>`;
       return;
     }
     if (!list.some(x => x.i === browseIndex)) browseIndex = list[0].i;
@@ -166,7 +178,30 @@
 
   function hideError() { errorEl.classList.add("hidden"); }
 
-  function playIndex(index, announce = true) {
+  function unlockAudio() {
+    hasUserInteraction = true;
+    video.muted = false;
+    soundUnlock.classList.add("hidden");
+    if (video.paused) video.play().catch(() => {});
+  }
+
+  async function smartPlay(isInitial = false) {
+    if (!isInitial || hasUserInteraction) {
+      video.muted = false;
+      try { await video.play(); soundUnlock.classList.add("hidden"); return; } catch (_) {}
+    }
+    // Browsers commonly block autoplay with sound. Fall back to muted autoplay
+    // so channel 1 starts immediately instead of looking paused.
+    video.muted = true;
+    try {
+      await video.play();
+      soundUnlock.classList.remove("hidden");
+    } catch (_) {
+      soundUnlock.classList.remove("hidden");
+    }
+  }
+
+  function playIndex(index, announce = true, isInitial = false) {
     if (!channels.length) return;
     currentIndex = (index + channels.length) % channels.length;
     browseIndex = currentIndex;
@@ -191,7 +226,7 @@
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         bootState.classList.add("hidden");
-        video.play().catch(() => {});
+        smartPlay(isInitial);
       });
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (!data.fatal) return;
@@ -205,7 +240,7 @@
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = channel.stream;
-      video.addEventListener("loadedmetadata", () => { bootState.classList.add("hidden"); video.play().catch(() => {}); }, { once: true });
+      video.addEventListener("loadedmetadata", () => { bootState.classList.add("hidden"); smartPlay(isInitial); }, { once: true });
       video.addEventListener("error", () => showError(channel), { once: true });
     } else {
       showError(channel, "This browser does not support HLS playback.");
@@ -243,12 +278,32 @@
   }
 
   function moveBrowse(delta) {
-    const list = channels.map((c, i) => ({ c, i }));
+    const list = filteredChannels();
     if (!list.length) return;
     const pos = Math.max(0, list.findIndex(x => x.i === browseIndex));
     browseIndex = list[(pos + delta + list.length) % list.length].i;
     updateBrowseFocus();
     resetPanelTimer();
+  }
+
+  async function toggleFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (_) {
+      toast("Fullscreen is not available in this browser");
+    }
+  }
+
+  function toggleWide() {
+    wideMode = !wideMode;
+    video.classList.toggle("video-wide", wideMode);
+    wideBtn.classList.toggle("active", wideMode);
+    wideBtn.textContent = wideMode ? "Fit" : "Wide";
+    toast(wideMode ? "Wide picture" : "Fit picture");
   }
 
   function numericInput(digit) {
@@ -281,6 +336,13 @@
   function handleKey(e) {
     const key = e.key;
     const panelOpen = !channelPanel.classList.contains("hidden");
+    const searchFocused = document.activeElement === channelSearch;
+    if (!hasUserInteraction && !["Tab", "Shift", "Control", "Alt", "Meta"].includes(key)) unlockAudio();
+
+    if (searchFocused) {
+      if (key === "Escape") { channelSearch.blur(); closePanel(); e.preventDefault(); }
+      return;
+    }
     if (/^[0-9]$/.test(key)) { numericInput(key); e.preventDefault(); return; }
 
     if (panelOpen) {
@@ -300,7 +362,21 @@
 
   document.addEventListener("keydown", handleKey, { passive: false });
   document.addEventListener("mousemove", () => { if (!channelPanel.classList.contains("hidden")) resetPanelTimer(); });
+  document.addEventListener("pointerdown", () => { if (!hasUserInteraction) unlockAudio(); }, { once: true });
   document.addEventListener("click", e => { if (e.target === channelPanel) closePanel(); });
+
+  channelSearch.addEventListener("input", e => {
+    searchQuery = e.target.value || "";
+    const list = filteredChannels();
+    if (list.length && !list.some(x => x.i === browseIndex)) browseIndex = list[0].i;
+    renderChannelList();
+    resetPanelTimer();
+  });
+  channelSearch.addEventListener("focus", () => resetPanelTimer());
+  fullscreenBtn.addEventListener("click", e => { e.stopPropagation(); toggleFullscreen(); resetPanelTimer(); });
+  wideBtn.addEventListener("click", e => { e.stopPropagation(); toggleWide(); resetPanelTimer(); });
+  soundUnlock.addEventListener("click", e => { e.stopPropagation(); unlockAudio(); });
+  document.addEventListener("fullscreenchange", () => { fullscreenBtn.classList.toggle("active", !!document.fullscreenElement); });
 
   video.addEventListener("playing", () => bootState.classList.add("hidden"));
   video.addEventListener("click", togglePanel);
@@ -353,7 +429,7 @@
       renderChannelList();
       loadEPG();
       if (channels.length) {
-        playIndex(currentIndex, false);
+        playIndex(currentIndex, false, true);
       } else {
         bootState.classList.add("hidden");
         showError(null, "No active channels were found in Supabase.");
