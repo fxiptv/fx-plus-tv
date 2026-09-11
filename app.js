@@ -16,6 +16,7 @@
   const fullscreenBtn = document.getElementById("fullscreenBtn");
   const wideBtn = document.getElementById("wideBtn");
   const soundUnlock = document.getElementById("soundUnlock");
+  const closePanelBtn = document.getElementById("closePanelBtn");
 
   let currentIndex = Math.min(Math.max(Number(cfg.startChannel) || 0, 0), Math.max(channels.length - 1, 0));
   let browseIndex = currentIndex;
@@ -28,6 +29,8 @@
   let searchQuery = "";
   let hasUserInteraction = false;
   let wideMode = false;
+  let streamAttemptToken = 0;
+  let failoverTimer = null;
 
   const safeText = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
 
@@ -201,11 +204,19 @@
     }
   }
 
-  function playIndex(index, announce = true, isInitial = false) {
+  function playIndex(index, announce = true, isInitial = false, failedSet = null) {
     if (!channels.length) return;
+
+    // Each manual channel change starts a new failover cycle. Automatic failover
+    // carries the same Set so we never loop forever when several links are down.
+    const failed = failedSet || new Set();
+    const attemptToken = ++streamAttemptToken;
+    clearTimeout(failoverTimer);
+
     currentIndex = (index + channels.length) % channels.length;
     browseIndex = currentIndex;
     const channel = channels[currentIndex];
+    const channelKey = channel.id || `index-${currentIndex}`;
     hideError();
 
     if (hls) { hls.destroy(); hls = null; }
@@ -213,36 +224,68 @@
     video.removeAttribute("src");
     video.load();
 
+    const failover = (reason = "Stream unavailable") => {
+      if (attemptToken !== streamAttemptToken) return;
+      clearTimeout(failoverTimer);
+      failed.add(channelKey);
+
+      if (failed.size >= channels.length) {
+        showError(channel, "No playable channels were found. Check the stream URLs in the Admin Portal.");
+        toast("No playable channels available");
+        return;
+      }
+
+      let nextIndex = (currentIndex + 1) % channels.length;
+      let guard = 0;
+      while (guard < channels.length && failed.has(channels[nextIndex].id || `index-${nextIndex}`)) {
+        nextIndex = (nextIndex + 1) % channels.length;
+        guard += 1;
+      }
+
+      const next = channels[nextIndex];
+      toast(`${channel.name} unavailable · trying ${next.name}`);
+      setTimeout(() => {
+        if (attemptToken === streamAttemptToken) {
+          playIndex(nextIndex, true, isInitial, failed);
+        }
+      }, 350);
+    };
+
     if (!channel.stream) {
-      showError(channel, "Add a valid .m3u8 URL for this channel in the Admin Portal / Supabase");
+      failover("Missing stream URL");
       if (announce) showMiniInfo(channel);
       renderChannelList();
       return;
     }
+
+    // If a server never returns a manifest/error, do not leave the TV frozen.
+    failoverTimer = setTimeout(() => failover("Stream timeout"), 9000);
 
     if (window.Hls && Hls.isSupported()) {
       hls = new Hls({ enableWorker: true, lowLatencyMode: true, backBufferLength: 30, maxBufferLength: 20 });
       hls.loadSource(channel.stream);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (attemptToken !== streamAttemptToken) return;
+        clearTimeout(failoverTimer);
         bootState.classList.add("hidden");
         smartPlay(isInitial);
       });
       hls.on(Hls.Events.ERROR, (_, data) => {
-        if (!data.fatal) return;
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          try { hls.startLoad(); } catch (_) { showError(channel); }
-        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-          try { hls.recoverMediaError(); } catch (_) { showError(channel); }
-        } else {
-          showError(channel);
-        }
+        if (attemptToken !== streamAttemptToken || !data.fatal) return;
+        failover(data.details || "HLS error");
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = channel.stream;
-      video.addEventListener("loadedmetadata", () => { bootState.classList.add("hidden"); smartPlay(isInitial); }, { once: true });
-      video.addEventListener("error", () => showError(channel), { once: true });
+      video.addEventListener("loadedmetadata", () => {
+        if (attemptToken !== streamAttemptToken) return;
+        clearTimeout(failoverTimer);
+        bootState.classList.add("hidden");
+        smartPlay(isInitial);
+      }, { once: true });
+      video.addEventListener("error", () => failover("Native HLS error"), { once: true });
     } else {
+      clearTimeout(failoverTimer);
       showError(channel, "This browser does not support HLS playback.");
     }
 
@@ -274,7 +317,7 @@
 
   function resetPanelTimer() {
     clearTimeout(panelTimer);
-    panelTimer = setTimeout(closePanel, Number(cfg.overlayAutoCloseMs) || 8000);
+    panelTimer = setTimeout(closePanel, Number(cfg.overlayAutoCloseMs) || 5000);
   }
 
   function moveBrowse(delta) {
@@ -337,6 +380,7 @@
     const key = e.key;
     const panelOpen = !channelPanel.classList.contains("hidden");
     const searchFocused = document.activeElement === channelSearch;
+    if (panelOpen) resetPanelTimer();
     if (!hasUserInteraction && !["Tab", "Shift", "Control", "Alt", "Meta"].includes(key)) unlockAudio();
 
     if (searchFocused) {
@@ -361,7 +405,12 @@
   }
 
   document.addEventListener("keydown", handleKey, { passive: false });
-  document.addEventListener("mousemove", () => { if (!channelPanel.classList.contains("hidden")) resetPanelTimer(); });
+  const markPanelActivity = () => { if (!channelPanel.classList.contains("hidden")) resetPanelTimer(); };
+  document.addEventListener("mousemove", markPanelActivity, { passive: true });
+  document.addEventListener("pointermove", markPanelActivity, { passive: true });
+  document.addEventListener("touchstart", markPanelActivity, { passive: true });
+  document.addEventListener("wheel", markPanelActivity, { passive: true });
+  channelList.addEventListener("scroll", markPanelActivity, { passive: true });
   document.addEventListener("pointerdown", () => { if (!hasUserInteraction) unlockAudio(); }, { once: true });
   document.addEventListener("click", e => { if (e.target === channelPanel) closePanel(); });
 
@@ -375,6 +424,7 @@
   channelSearch.addEventListener("focus", () => resetPanelTimer());
   fullscreenBtn.addEventListener("click", e => { e.stopPropagation(); toggleFullscreen(); resetPanelTimer(); });
   wideBtn.addEventListener("click", e => { e.stopPropagation(); toggleWide(); resetPanelTimer(); });
+  closePanelBtn.addEventListener("click", e => { e.stopPropagation(); closePanel(); });
   soundUnlock.addEventListener("click", e => { e.stopPropagation(); unlockAudio(); });
   document.addEventListener("fullscreenchange", () => { fullscreenBtn.classList.toggle("active", !!document.fullscreenElement); });
 

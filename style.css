@@ -72,3 +72,7 @@ button{color:inherit}
 .channel-list .search-empty{padding:34px 20px;color:var(--muted);font-size:13px;text-align:center}
 @media(max-width:900px){.panel-head{align-items:flex-start;flex-direction:column}.panel-tools{width:100%;margin-left:0}.search-wrap{width:100%;flex:1}.tool-btn{flex:0 0 auto}.browser-layout{height:calc(100% - 132px)}}
 @media(max-width:560px){.panel-tools{gap:7px}.search-wrap{height:42px}.tool-btn{height:42px;min-width:56px;padding:0 10px}.icon-tool{min-width:42px}.browser-layout{height:calc(100% - 128px)}}
+
+/* FX+ v1.3 overlay close behavior */
+.close-tool{font-size:24px;line-height:1;font-weight:420}
+.close-tool:hover,.close-tool:focus-visible{background:rgba(255,255,255,.94);color:#08090c}

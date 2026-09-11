@@ -1,67 +1,20 @@
-# FX+ TV App — Supabase Edition
+# FX+ TV App v1.2
 
-FX+ is a TV-first IPTV frontend designed for Android TV / Fire TV / TV boxes and desktop browsers.
+TV-first IPTV frontend connected to Supabase.
 
-## Current setup
+## v1.2
+- Search channels in the overlay
+- Fullscreen button
+- Wide/Fit picture mode
+- Initial channel autoplay fallback (muted until first interaction when browser policy requires it)
+- Automatic channel failover: if a stream is missing, fails fatally, or does not load within 9 seconds, FX+ automatically tries the next active channel
+- Failover never loops forever: if all active streams fail, FX+ shows an error
 
-The TV app now loads its channel list directly from Supabase.
+## Data
+Channels are loaded from the Supabase `channels` table. Stream URLs are not hardcoded in the UI.
 
-- Supabase table: `public.channels`
-- Only channels where `active = true` are shown
-- Ordering: first by `sort_order`, then by `number`
-- XMLTV / EPG remains local in `epg.xml` for now
-- Categories have been removed; the channel browser shows `All Channels`
 
-## Supabase configuration
-
-The connection is stored in `channels.js`:
-
-- `supabaseUrl`
-- `supabasePublishableKey`
-
-Never place a `service_role`, secret key, or database password in frontend files.
-
-## Required channels columns
-
-The app expects:
-
-- `id`
-- `number`
-- `name`
-- `logo`
-- `stream_url`
-- `epg_id`
-- `active`
-- `sort_order`
-
-## Navigation
-
-When the app opens, it loads the first active channel automatically.
-
-- Arrow Up / Right: next channel
-- Arrow Down / Left: previous channel
-- Enter / OK: open the All Channels overlay
-- In overlay: arrows move through channels
-- Enter / OK: play selected channel
-- Back / Escape: close overlay
-- Number keys: jump directly to a channel number
-
-## Test locally
-
-Do not test XMLTV by double-clicking `index.html`. Use a local web server.
-
-VS Code: use Live Server.
-
-Or:
-
-```bash
-python -m http.server 8080
-```
-
-Then open:
-
-`http://localhost:8080`
-
-## Next step
-
-Build the FX+ Admin Portal with Supabase Authentication so an administrator can add, edit, activate/deactivate, reorder and delete channels without editing code.
+## v1.3
+- Channel overlay closes automatically after 5 seconds without interaction.
+- Mouse, touch, remote/keyboard movement, search, wheel and list scrolling reset the 5-second timer.
+- Added an explicit Close (x) button; closing the overlay does not restart the current channel.

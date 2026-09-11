@@ -13,7 +13,7 @@ window.TV_CONFIG = {
   appName: "FX+",
   startChannel: 0,
   epgUrl: "epg.xml",
-  overlayAutoCloseMs: 8000,
+  overlayAutoCloseMs: 5000,
   miniInfoDurationMs: 3200,
 
   supabaseUrl: "https://nuzencjhlkecvzxuxfgq.supabase.co",
